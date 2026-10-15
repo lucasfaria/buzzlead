@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POC BuzzLead</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#5f6b7a; --line:#d9dee5; --accent:#0b5fff; --ok:#12794a; --err:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --card:#1d2128; --text:#e8ebef; --muted:#9aa5b3; --line:#2c333d; --accent:#5c8dff; --ok:#4cc38a; --err:#ff7b72; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 48px; display:grid; gap:20px; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:16px; margin:0 0 12px; }
+  p.hint { color:var(--muted); margin:4px 0 0; font-size:13px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); font:inherit; }
+  button { margin-top:14px; padding:9px 16px; border:0; border-radius:6px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .msg { margin-top:12px; font-size:14px; word-break:break-all; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  code { background:var(--bg); padding:2px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>POC BuzzLead — embaixadores e indicações</h1>
+    <p class="hint">Fluxo: cadastrar embaixador → receber link → usar o código (hashid) para registrar indicações.</p>
+  </div>
+
+  <section>
+    <h2>1. Cadastro de embaixador</h2>
+    <label>Nome</label><input id="a-name" autocomplete="off">
+    <label>E-mail</label><input id="a-email" type="email" autocomplete="off">
+    <label>Celular (DDI+DDD+número, opcional)</label><input id="a-cell" autocomplete="off">
+    <button id="a-btn">Cadastrar</button>
+    <div class="msg" id="a-msg"></div>
+  </section>
+
+  <section>
+    <h2>2. Indicação feita por um embaixador</h2>
+    <p class="hint">O código do embaixador vem de <code>?ref=</code> na URL. É ele que identifica quem indicou.</p>
+    <label>Código do embaixador (hashid)</label><input id="r-hash" autocomplete="off">
+    <label>Nome do indicado</label><input id="r-name" autocomplete="off">
+    <label>E-mail do indicado</label><input id="r-email" type="email" autocomplete="off">
+    <label>Telefone do indicado (opcional)</label><input id="r-phone" autocomplete="off">
+    <button id="r-btn">Indicar</button>
+    <div class="msg" id="r-msg"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const show = (el, text, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = text; };
+
+async function post(url, body) {
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+// ?ref=XXXX preenche o código do embaixador
+$('r-hash').value = new URLSearchParams(location.search).get('ref') ?? '';
+
+$('a-btn').onclick = async () => {
+  const btn = $('a-btn'); btn.disabled = true;
+  const { ok, data } = await post('/api/ambassadors', { name: $('a-name').value, email: $('a-email').value, cellphone: $('a-cell').value || undefined });
+  btn.disabled = false;
+  if (!ok) return show($('a-msg'), data.error ?? 'Erro ao cadastrar', false);
+  const own = `${location.origin}/?ref=${data.hashid}`;
+  show($('a-msg'), `${data.created ? 'Cadastrado!' : 'Já cadastrado.'} Link BuzzLead: ${data.link} | Link desta POC: ${own}`, true);
+  $('r-hash').value = data.hashid;
+};
+
+$('r-btn').onclick = async () => {
+  const btn = $('r-btn'); btn.disabled = true;
+  const { ok, data } = await post('/api/referrals', { hashid: $('r-hash').value, lead: { name: $('r-name').value, email: $('r-email').value, phone: $('r-phone').value || undefined } });
+  btn.disabled = false;
+  show($('r-msg'), ok ? 'Indicação registrada!' : (data.error ?? 'Erro ao indicar'), ok);
+};
+</script>
+</body>
+</html>

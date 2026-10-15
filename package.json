@@ -1,0 +1,12 @@
+{
+  "name": "poc-buzzlead",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "POC: cadastro de embaixadores e indicações com a API v2 da BuzzLead",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "mock": "MOCK=1 node server.js"
+  },
+  "engines": { "node": ">=20.6" }
+}
