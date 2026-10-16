@@ -14,7 +14,7 @@
   p.hint { color:var(--muted); margin:4px 0 0; font-size:13px; }
   section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; }
   label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
-  input { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); font:inherit; }
+  input, select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); font:inherit; }
   button { margin-top:14px; padding:9px 16px; border:0; border-radius:6px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
   button:disabled { opacity:.6; cursor:wait; }
   .msg { margin-top:12px; font-size:14px; word-break:break-all; }
@@ -33,7 +33,8 @@
     <h2>1. Cadastro de embaixador</h2>
     <label>Nome</label><input id="a-name" autocomplete="off">
     <label>E-mail</label><input id="a-email" type="email" autocomplete="off">
-    <label>Celular (DDI+DDD+número, opcional)</label><input id="a-cell" autocomplete="off">
+    <label>CNPJ</label><input id="a-cnpj" autocomplete="off" placeholder="00.000.000/0000-00">
+    <label>Celular (DDD + número, opcional)</label><input id="a-cell" autocomplete="off" placeholder="(62) 91122-3344">
     <button id="a-btn">Cadastrar</button>
     <div class="msg" id="a-msg"></div>
   </section>
@@ -45,6 +46,18 @@
     <label>Nome do indicado</label><input id="r-name" autocomplete="off">
     <label>E-mail do indicado</label><input id="r-email" type="email" autocomplete="off">
     <label>Telefone do indicado (opcional)</label><input id="r-phone" autocomplete="off">
+    <label>Tipo de cadastro</label>
+    <select id="r-type">
+      <option value="PJ">Pessoa jurídica</option>
+      <option value="PF">Pessoa física</option>
+    </select>
+    <div id="r-pj">
+      <label>CNPJ do indicado</label><input id="r-cnpj" autocomplete="off" placeholder="00.000.000/0000-00">
+    </div>
+    <div id="r-pf" hidden>
+      <label>CPF do indicado</label><input id="r-cpf" autocomplete="off" placeholder="000.000.000-00">
+    </div>
+    <label>Empresa do indicado (opcional)</label><input id="r-company" autocomplete="off">
     <button id="r-btn">Indicar</button>
     <div class="msg" id="r-msg"></div>
   </section>
@@ -65,7 +78,7 @@ $('r-hash').value = new URLSearchParams(location.search).get('ref') ?? '';
 
 $('a-btn').onclick = async () => {
   const btn = $('a-btn'); btn.disabled = true;
-  const { ok, data } = await post('/api/ambassadors', { name: $('a-name').value, email: $('a-email').value, cellphone: $('a-cell').value || undefined });
+  const { ok, data } = await post('/api/ambassadors', { name: $('a-name').value, email: $('a-email').value, cnpj: $('a-cnpj').value, cellphone: $('a-cell').value || undefined });
   btn.disabled = false;
   if (!ok) return show($('a-msg'), data.error ?? 'Erro ao cadastrar', false);
   const own = `${location.origin}/?ref=${data.hashid}`;
@@ -73,9 +86,20 @@ $('a-btn').onclick = async () => {
   $('r-hash').value = data.hashid;
 };
 
+$('r-type').onchange = () => {
+  $('r-pj').hidden = $('r-type').value !== 'PJ';
+  $('r-pf').hidden = $('r-type').value !== 'PF';
+};
+
 $('r-btn').onclick = async () => {
   const btn = $('r-btn'); btn.disabled = true;
-  const { ok, data } = await post('/api/referrals', { hashid: $('r-hash').value, lead: { name: $('r-name').value, email: $('r-email').value, phone: $('r-phone').value || undefined } });
+  const personType = $('r-type').value;
+  const { ok, data } = await post('/api/referrals', { hashid: $('r-hash').value, lead: {
+    name: $('r-name').value, email: $('r-email').value, phone: $('r-phone').value || undefined,
+    personType, company: $('r-company').value || undefined,
+    cnpj: personType === 'PJ' ? $('r-cnpj').value : undefined,
+    cpf: personType === 'PF' ? $('r-cpf').value : undefined,
+  } });
   btn.disabled = false;
   show($('r-msg'), ok ? 'Indicação registrada!' : (data.error ?? 'Erro ao indicar'), ok);
 };
